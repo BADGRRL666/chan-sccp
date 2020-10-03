@@ -740,7 +740,6 @@ static int sccp_astwrap_indicate(PBX_CHANNEL_TYPE * ast, int ind, const void *da
 				if (!ast_rtp_instance_get_and_cmp_remote_address(c->rtp.audio.instance, &sin_audio_remote)) {
 					sccp_log((DEBUGCAT_PBX | DEBUGCAT_INDICATE))(VERBOSE_PREFIX_3 "SCCP: Audio source has changed, update media transmission\n");
 					sccp_channel_updateMediaTransmission(c);
-					// ast_rtp_instance_change_source(c->rtp.audio.instance);
 				}
 			}
 #if CS_SCCP_VIDEO
@@ -750,7 +749,6 @@ static int sccp_astwrap_indicate(PBX_CHANNEL_TYPE * ast, int ind, const void *da
 				if (!ast_rtp_instance_get_and_cmp_remote_address(c->rtp.video.instance, &sin_video_remote)) {
 					sccp_log((DEBUGCAT_PBX | DEBUGCAT_INDICATE))(VERBOSE_PREFIX_3 "SCCP: Video source has changed, update multi-media transmission\n");
 					sccp_channel_updateMultiMediaTransmission(c);
-					// ast_rtp_instance_change_source(c->rtp.video.instance);
 				}
 			}
 #endif
@@ -772,9 +770,6 @@ static int sccp_astwrap_indicate(PBX_CHANNEL_TYPE * ast, int ind, const void *da
 			break;
 
 		case AST_CONTROL_HOLD:										/* when the bridged channel hold/unhold the call we are notified here */
-			/*if (c->rtp.audio.instance) {
-				ast_rtp_instance_update_source(c->rtp.audio.instance);
-			}*/
 			sccp_channel_stopMediaTransmission(c, TRUE);
 #ifdef CS_SCCP_VIDEO
 			if (c->rtp.video.instance && d && sccp_device_isVideoSupported(d) && sccp_channel_getVideoMode(c) != SCCP_VIDEO_MODE_OFF) {
@@ -782,7 +777,6 @@ static int sccp_astwrap_indicate(PBX_CHANNEL_TYPE * ast, int ind, const void *da
 				if(sccp_rtp_getState(&c->rtp.video, SCCP_RTP_TRANSMISSION)) {
 					sccp_channel_stopMultiMediaTransmission(c, TRUE);
 				}
-				// ast_rtp_instance_update_source(c->rtp.video.instance);
 			}
 #endif
 			sccp_astwrap_moh_start(ast, (const char *) data, c->musicclass);
@@ -790,18 +784,15 @@ static int sccp_astwrap_indicate(PBX_CHANNEL_TYPE * ast, int ind, const void *da
 			break;
 
 		case AST_CONTROL_UNHOLD:
-			/*if (c->rtp.audio.instance) {
-				ast_rtp_instance_update_source(c->rtp.audio.instance);
-			}*/
+			if (c->rtp.audio.instance && !sccp_rtp_getState(&c->rtp.audio, SCCP_RTP_TRANSMISSION)) {
+				// ast_rtp_instance_update_source(c->rtp.audio.instance);
+				sccp_channel_startMediaTransmission(c);
+			}
 #ifdef CS_SCCP_VIDEO
 			if (c->rtp.video.instance && d && sccp_device_isVideoSupported(d) && sccp_channel_getVideoMode(c) != SCCP_VIDEO_MODE_OFF) {
-				ast_rtp_instance_update_source(c->rtp.video.instance);
-				if(!sccp_rtp_getState(&c->rtp.video, SCCP_RTP_RECEPTION)) {
-					sccp_channel_openMultiMediaReceiveChannel(c);
-				} else if((sccp_rtp_getState(&c->rtp.video, SCCP_RTP_RECEPTION) & SCCP_RTP_STATUS_ACTIVE) && !sccp_rtp_getState(&c->rtp.video, SCCP_RTP_TRANSMISSION)) {
+				if (!sccp_rtp_getState(&c->rtp.video, SCCP_RTP_TRANSMISSION)) {
 					sccp_channel_startMultiMediaTransmission(c);
 				}
-				// ast_rtp_instance_update_source(c->rtp.video.instance);
 			}
 #endif
 			sccp_astwrap_moh_stop(ast);
